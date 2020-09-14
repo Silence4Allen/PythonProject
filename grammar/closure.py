@@ -9,39 +9,26 @@
 import time
 
 
+def time_counter(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        func(args)
+        end_time = time.perf_counter()
+        print(end_time - start_time)
+
+    return wrapper
+
+
 class Closure(object):
-
-    def time_counter(self, func):
-        def wrapper():
-            start_time = time.clock()
-            func()
-            end_time = time.clock()
-            print(end_time - start_time)
-
-        return wrapper()
 
     @time_counter
     def do(self):
-        for i in range(1000):
-            pass
+        for i in range(3):
+            print(i)
+            time.sleep(1)
         print("done")
 
 
 if __name__ == '__main__':
-    def time_counter(func):
-        def wrapper():
-            start_time = time.clock()
-            func()
-            end_time = time.clock()
-            print(end_time - start_time)
-
-        return wrapper()
-
-
-    @time_counter
-    def do():
-        for i in range(1000):
-            pass
-        print("done")
-
-    do()
+    c = Closure()
+    c.do()
