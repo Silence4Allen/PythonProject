@@ -9,8 +9,13 @@
 import time
 
 
-def time_counter(func):
+def time_counter(func, *args, **kwargs):
+    print(args)
+    print(**kwargs)
+
     def wrapper(*args, **kwargs):
+        print(args)
+        print(**kwargs)
         start_time = time.perf_counter()
         func(args)
         end_time = time.perf_counter()
@@ -19,7 +24,14 @@ def time_counter(func):
     return wrapper
 
 
-class Closure(object):
+type(1)
+
+
+class Closure(ValueError, object):
+    # def time_parent(self):
+
+    # return time_counter
+    # time_counter(print("print"))
 
     @time_counter
     def do(self):
@@ -31,4 +43,11 @@ class Closure(object):
 
 if __name__ == '__main__':
     c = Closure()
-    c.do()
+    # c.do()
+    print(type(1))
+    print(type(c))
+    print(type(Closure))
+    print(type(Closure.__bases__))
+    print(Closure.__bases__)
+    print(type(object))
+    print(type(type))
