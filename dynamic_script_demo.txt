@@ -1,0 +1,10 @@
+class Demo(object):
+
+    def __init__(self):
+        self._text = "hehe"
+
+    @property
+    def text(self):
+        print(self._text)
+        logging.info(self._text)
+        return self._text
