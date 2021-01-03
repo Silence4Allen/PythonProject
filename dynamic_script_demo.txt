@@ -1,7 +1,7 @@
 class Demo(object):
 
     def __init__(self):
-        self._text = "hehe"
+        self._text = "hehehhhh"
 
     @property
     def text(self):
