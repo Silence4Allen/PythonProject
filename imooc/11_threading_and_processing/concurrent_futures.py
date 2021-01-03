@@ -13,7 +13,8 @@
 futures可以让多线程和多进程编码接口一致
 """
 import time
-
+from asyncio import wait, FIRST_COMPLETED, as_completed
+from concurrent.futures.thread import ThreadPoolExecutor
 
 
 def get_html(times):
