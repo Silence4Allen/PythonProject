@@ -1,39 +1,116 @@
 # -*- coding: utf-8 -*-#
 
-# -------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Name:         test
 # Description:  
 # Author:       Allen
-# Time:         2020/9/14 19:21
-# -------------------------------------------------------------------------------
+# Time:         2021/1/4 15:14
+# ------------------------------------------------------------------------------
+import time
+from datetime import timedelta
 
-import logging
+try:
+    from HTMLParser import HTMLParser
+    from urlparse import urljoin, urldefrag
+except ImportError:
+    from html.parser import HTMLParser
+    from urllib.parse import urljoin, urldefrag
+
+from tornado import httpclient, gen, ioloop, queues
+
+base_url = 'http://www.tornadoweb.org/en/stable/'
+concurrency = 10
 
 
-def get_dynamic_script_content():
-    _dynamic_script_content = ""
-    with open("dynamic_script_demo.txt", "r") as fs:
-        _lines = fs.readlines()
-        for _l in _lines:
-            _dynamic_script_content += _l
+@gen.coroutine
+def get_links_from_url(url):
+    """Download the page at `url` and parse it for links.
 
-    return _dynamic_script_content
+    Returned links have had the fragment after `#` removed, and have been made
+    absolute so, e.g. the URL 'gen.html#tornado.gen.coroutine' becomes
+    'http://www.tornadoweb.org/en/stable/gen.html'.
+    """
+    try:
+        response = yield httpclient.AsyncHTTPClient().fetch(url)
+        print('fetched %s' % url)
+
+        html = response.body if isinstance(response.body, str) \
+            else response.body.decode()
+        urls = [urljoin(url, remove_fragment(new_url))
+                for new_url in get_links(html)]
+    except Exception as e:
+        print('Exception: %s%s' % (e, url))
+        raise gen.Return([])
+
+    raise gen.Return(urls)
+
+
+def remove_fragment(url):
+    pure_url, frag = urldefrag(url)
+    return pure_url
+
+
+def get_links(html):
+    class URLSeeker(HTMLParser):
+        def __init__(self):
+            HTMLParser.__init__(self)
+            self.urls = []
+
+        def handle_starttag(self, tag, attrs):
+            href = dict(attrs).get('href')
+            if href and tag == 'a':
+                self.urls.append(href)
+
+    url_seeker = URLSeeker()
+    url_seeker.feed(html)
+    return url_seeker.urls
+
+
+@gen.coroutine
+def main():
+    q = queues.Queue()
+    start = time.time()
+    fetching, fetched = set(), set()
+
+    @gen.coroutine
+    def fetch_url():
+        current_url = yield q.get()
+        try:
+            if current_url in fetching:
+                return
+
+            print('fetching %s' % current_url)
+            fetching.add(current_url)
+            urls = yield get_links_from_url(current_url)
+            fetched.add(current_url)
+
+            for new_url in urls:
+                # Only follow links beneath the base URL
+                if new_url.startswith(base_url):
+                    yield q.put(new_url)
+
+        finally:
+            q.task_done()
+
+    @gen.coroutine
+    def worker():
+        while True:
+            yield fetch_url()
+
+    q.put(base_url)
+
+    # Start workers, then wait for the work queue to be empty.
+    for _ in range(concurrency):
+        worker()
+    yield q.join(timeout=timedelta(seconds=300))
+    assert fetching == fetched
+    print('Done in %d seconds, fetched %s URLs.' % (
+        time.time() - start, len(fetched)))
 
 
 if __name__ == '__main__':
-    dynamic_script_content = get_dynamic_script_content()
-    import_class_dict = {k: v for k, v in list(globals().items()) if
-                         k not in ['self', 'get_dynamic_script_content', dynamic_script_content] and not k.startswith(
-                             "_")}
+    import logging
 
-    # 加载云函数之前保存一下当前全局变量
-    origin_keys = list(import_class_dict.keys())
-
-    # 加载云函数，此时会在import_class_dict中加载云函数中的类和全局变量
-    exec(dynamic_script_content, import_class_dict)
-
-    # 筛选出新加载的类对象
-    classes = [v for k, v in import_class_dict.items() if k not in origin_keys and not k.startswith("_")]
-    a = classes[0]().text
-    print(a)
-
+    logging.basicConfig()
+    io_loop = ioloop.IOLoop.current()
+    io_loop.run_sync(main)
