@@ -6,6 +6,7 @@
 # Author:       Allen
 # Time:         2020/12/25 10:25
 # ------------------------------------------------------------------------------
+import functools
 import inspect
 
 
@@ -56,22 +57,36 @@ class OpenApiDecorate:
         return 0 if _double is None or _double == '' else float(_double)
 
 
-# def open_api():
-#     def warpper(*args, **kwargs):
-#         print(args)
-#         print(kwargs)
-#
-#     return warpper
+open_api = OpenApiDecorate
 
 
-open_api = OpenApiDecorate()
+class Test(object):
+
+    @open_api('employee', name='hello.test')
+    def p(self, *args, **kwargs):
+        print(args)
+        print(kwargs)
 
 
-@open_api(name='hello.test')
-def p(*args, **kwargs):
-    print(args)
-    print(kwargs)
+def open_api2(name):
+    def d(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            print(f'using func:{name}')
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return d
+
+
+@open_api2(name='hello')
+def do_something():
+    print('doing something')
 
 
 if __name__ == '__main__':
-    pass
+    # hcm_core
+    Test().p()
+    # self do it
+    do_something()
